@@ -4,14 +4,16 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
     var extensionId = module.id.substr(0, module.id.indexOf('/')).substr(0, module.id.indexOf('/'));
 
     function renderNumber(value) {
-        if (Math.abs(value) >= 1)
-            return value.toLocaleString();
-        else {
-            var firstNonZeroFractionDigit = -Math.floor(Math.log(value) / Math.log(10));
-            return value.toLocaleString(undefined, {
-                maximumFractionDigits: firstNonZeroFractionDigit + 1
-            });
-        }
+        if (typeof value === 'number')
+           if (Math.abs(value) >= 1)
+               return value.toLocaleString();
+           else {
+               var firstNonZeroFractionDigit = -Math.floor(Math.log(value) / Math.log(10));
+               return value.toLocaleString(undefined, {
+                   maximumFractionDigits: (value == 0 || isNaN(value)) ? 2 : firstNonZeroFractionDigit + 1
+               });
+           }
+        return '' + value;
     }
 
     koGrid.defineExtension(extensionId, {
