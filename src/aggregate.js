@@ -53,7 +53,7 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
                 });
             });
 
-            var computeStatistics = config['statisticsComputer'] || computeStatisticsFromValuesStream;
+            var computeStatistics = config['statisticsComputer'] || computeStatisticsFromObservablesStream;
 
             var idCounter = 0;
             var computer = ko.computed(() => {
@@ -116,20 +116,22 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
         }
     });
 
-    var computeStatisticsFromValuesStream = (grid, propertiesOfInterest) => grid.data.source
-        .streamValues(q => q.filteredBy(grid.data.predicate))
+    var computeStatisticsFromObservablesStream = (grid, propertiesOfInterest) => grid.data.source
+        .streamObservables(q => q.filteredBy(grid.data.predicate))
         .then(values => {
             var statistics = {count: 0};
             propertiesOfInterest.forEach(function (p) {
                 statistics[p] = {'minimum': Number.POSITIVE_INFINITY, 'maximum': Number.NEGATIVE_INFINITY, 'sum': 0};
             });
 
-            return values.reduce(function (_, value) {
+            var promiseProcessedValues = values.reduce(function (_, value) {
                 ++statistics.count;
 
                 propertiesOfInterest.forEach(function (p) {
                     var propertyStatistics = statistics[p];
-                    var v = grid.data.valueSelector(value[p]);
+                    var v = grid.data.valueSelector(p.indexOf('.') == -1 ? value[p] : eval('value.' + p));
+                    if (typeof v === 'string')
+                       v = (v.trim() == "") ? 0 : isNaN(v) ? v.trim().length : parseFloat(v);
                     propertyStatistics['minimum'] = Math.min(propertyStatistics['minimum'], v);
                     propertyStatistics['maximum'] = Math.max(propertyStatistics['maximum'], v);
                     propertyStatistics['sum'] += v;
@@ -137,6 +139,7 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
 
                 return _;
             }, statistics);
+            return promiseProcessedValues;
         });
 
     ko.bindingHandlers['__gridAggregate'] = {
