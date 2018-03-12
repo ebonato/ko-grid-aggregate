@@ -2,7 +2,7 @@
   "name": "ko-grid-aggregate",
   "main": "dist/ko-grid-aggregate.js",
   "description": "A ko-grid extension which displays aggregates such as the sum or average in the table footer.",
-  "authors": ["Ben Schulz (https://github.com/benschulz)"],
+  "authors": ["Eduardo Bonato (https://github.com/ebonato)"],
   "license": "BSD-3-Clause",
   "keywords": [
     "ko-grid",
@@ -12,10 +12,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "http://github.com/benschulz/ko-grid-aggregate.git"
+    "url": "http://github.com/ebonato/ko-grid-aggregate.git"
   },
   "dependencies": {
     "knockout": "^3.3.0",
-    "ko-grid": "benschulz/ko-grid"
+    "ko-grid": "ebonato/ko-grid"
   }
 }
