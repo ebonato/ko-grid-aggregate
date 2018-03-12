@@ -74,7 +74,7 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
                          if (ko.isObservable(o[p])) o[p](); //touch for recalculation on change
                       }
                    });
-                }
+                };
                 grid.data.view.observables().forEach(function (observableRow) {
                    touchObservables(observableRow);
                 });
@@ -109,7 +109,7 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
             }).extend({
                rateLimit: {
                   timeout: 500,
-                  method: "notifyWhenChangesStop"
+                  method: 'notifyWhenChangesStop'
                }
             });
             this.dispose = function () { computer.dispose(); };
@@ -131,7 +131,7 @@ define(['module', 'knockout', 'ko-grid'], function (module, ko, koGrid) {
                     var propertyStatistics = statistics[p];
                     var v = grid.data.valueSelector(p.indexOf('.') == -1 ? value[p] : eval('value.' + p));
                     if (typeof v === 'string')
-                       v = (v.trim() == "") ? 0 : isNaN(v) ? v.trim().length : parseFloat(v);
+                       v = (v.trim() == '') ? 0 : isNaN(v) ? v.trim().length : parseFloat(v);
                     propertyStatistics['minimum'] = Math.min(propertyStatistics['minimum'], v);
                     propertyStatistics['maximum'] = Math.max(propertyStatistics['maximum'], v);
                     propertyStatistics['sum'] += v;

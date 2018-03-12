@@ -13,12 +13,14 @@ var ko_grid_aggregate_aggregate, ko_grid_aggregate;
 ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
   var extensionId = 'ko-grid-aggregate'.substr(0, 'ko-grid-aggregate'.indexOf('/')).substr(0, 'ko-grid-aggregate'.indexOf('/'));
   function renderNumber(value) {
-    if (Math.abs(value) >= 1)
-      return value.toLocaleString();
-    else {
-      var firstNonZeroFractionDigit = -Math.floor(Math.log(value) / Math.log(10));
-      return value.toLocaleString(undefined, { maximumFractionDigits: firstNonZeroFractionDigit + 1 });
-    }
+    if (typeof value === 'number')
+      if (Math.abs(value) >= 1)
+        return value.toLocaleString();
+      else {
+        var firstNonZeroFractionDigit = -Math.floor(Math.log(value) / Math.log(10));
+        return value.toLocaleString(undefined, { maximumFractionDigits: value == 0 || isNaN(value) ? 2 : firstNonZeroFractionDigit + 1 });
+      }
+    return '' + value;
   }
   koGrid.defineExtension(extensionId, {
     initializer: function (template) {
@@ -54,11 +56,32 @@ ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
             propertiesOfInterest.push(property);
         });
       });
-      var computeStatistics = config['statisticsComputer'] || computeStatisticsFromValuesStream;
+      var computeStatistics = config['statisticsComputer'] || computeStatisticsFromObservablesStream;
       var idCounter = 0;
       var computer = ko.computed(function () {
         grid.data.predicate();
         grid.data.view.values();
+        //recalculates on new rows
+        var propertyNameParent = '';
+        var touchObservables = function (o)
+          //touch observables recursively
+          {
+            Object.keys(o).forEach(function (p) {
+              if (typeof o[p] === 'object') {
+                if (o[p]) {
+                  propertyNameParent += p + '.';
+                  touchObservables(o[p]);
+                  propertyNameParent = propertyNameParent.replace(p + '.', '');
+                }
+              } else {
+                if (ko.isObservable(o[p]))
+                  o[p]();  //touch for recalculation on change
+              }
+            });
+          };
+        grid.data.view.observables().forEach(function (observableRow) {
+          touchObservables(observableRow);
+        });
         return computeStatistics(grid, propertiesOfInterest).then(function (statistics) {
           var count = statistics.count;
           aggregateRows(bindingValue.map(function (aggregates) {
@@ -72,7 +95,7 @@ ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
                 row[columnId] = {
                   column: column,
                   aggregate: aggregate,
-                  value: count ? renderNumber(aggregate === 'average' ? statistics[property]['sum'] / count : statistics[property][aggregate]) : 'N/A'
+                  value: count ? renderNumber(aggregate === 'average' ? statistics[property]['sum'] / count : aggregate === 'count' ? count : statistics[property][aggregate]) : 'N/A'
                 };
               } else {
                 row[columnId] = { column: column };
@@ -82,14 +105,19 @@ ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
           }));
           grid.layout.recalculate();
         });
+      }).extend({
+        rateLimit: {
+          timeout: 500,
+          method: 'notifyWhenChangesStop'
+        }
       });
       this.dispose = function () {
         computer.dispose();
       };
     }
   });
-  var computeStatisticsFromValuesStream = function (grid, propertiesOfInterest) {
-    return grid.data.source.streamValues(function (q) {
+  var computeStatisticsFromObservablesStream = function (grid, propertiesOfInterest) {
+    return grid.data.source.streamObservables(function (q) {
       return q.filteredBy(grid.data.predicate);
     }).then(function (values) {
       var statistics = { count: 0 };
@@ -100,17 +128,20 @@ ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
           'sum': 0
         };
       });
-      return values.reduce(function (_, value) {
+      var promiseProcessedValues = values.reduce(function (_, value) {
         ++statistics.count;
         propertiesOfInterest.forEach(function (p) {
           var propertyStatistics = statistics[p];
-          var v = grid.data.valueSelector(value[p]);
+          var v = grid.data.valueSelector(p.indexOf('.') == -1 ? value[p] : eval('value.' + p));
+          if (typeof v === 'string')
+            v = v.trim() == '' ? 0 : isNaN(v) ? v.trim().length : parseFloat(v);
           propertyStatistics['minimum'] = Math.min(propertyStatistics['minimum'], v);
           propertyStatistics['maximum'] = Math.max(propertyStatistics['maximum'], v);
           propertyStatistics['sum'] += v;
         });
         return _;
       }, statistics);
+      return promiseProcessedValues;
     });
   };
   ko.bindingHandlers['__gridAggregate'] = {
